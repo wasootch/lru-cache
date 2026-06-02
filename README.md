@@ -1,6 +1,6 @@
 # Cache Implementations
 
-Java implementations of LRU and LFU caches, both with O(1) `get` and `put` operations.
+Java implementations of LRU, LFU, and LRU-with-TTL caches, all with O(1) `get` and `put` operations.
 
 ## LRU Cache
 
@@ -19,6 +19,19 @@ Uses a `HashMap` for O(1) key lookup, a second `HashMap` keyed by frequency wher
 
 - `get(key)` — returns `Optional.of(value)` if present, `Optional.empty()` if not. Increments the entry's frequency.
 - `put(key, value)` — inserts or updates an entry and increments its frequency. New entries start at frequency 1. Evicts the least-frequently-used (LRU-tiebroken) entry when over capacity.
+
+## LRU Cache with TTL
+
+Extends LRU eviction with a per-entry time-to-live. Expired entries are treated as absent on `get` and are purged proactively before every `get` and `put`.
+
+Adds a min-heap (`PriorityQueue`) ordered by expiry time alongside the standard LRU structures. Before each operation, expired entries are drained from the heap front and removed from both the map and linked list. This prevents expired entries from occupying capacity slots and forcing valid entries to be evicted prematurely.
+
+Heap entries that become stale (due to LRU eviction or a `put` update) are handled with lazy deletion: when an entry is popped from the heap, an identity check against the map confirms it is still the active node before removal.
+
+Accepts an optional `java.time.Clock` for deterministic testing without `Thread.sleep`.
+
+- `get(key)` — purges expired entries, then returns `Optional.of(value)` if present and fresh, `Optional.empty()` otherwise.
+- `put(key, value)` — purges expired entries, then inserts or replaces the entry with a fresh TTL. Evicts the least-recently-used entry if still over capacity after purging.
 
 ## Running Tests
 
